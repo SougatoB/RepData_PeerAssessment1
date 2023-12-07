@@ -271,21 +271,48 @@ mydat2 <- mydat %>%
 mydat2 %>% head()
 ```
 
-Taking the row means while leaving out the interval column gives the desired output.
+Taking the row means while leaving out the interval column gives the desired output. 
 
 ```{r}
 mydat2_intervals <- mydat2 %>% 
       mutate(interval_means = round(rowMeans(select(.,-interval), 
                                              na.rm = TRUE), 2)) %>% 
       select(interval, interval_means)
+```
+
+Also, the true interval is in time units while our dataframe above, the column 'interval' is of type int. To fix this, we create a function that converts this column to time units, and use this to update the data type of the interval column.
+
+
+```{r}
+tohours_3 <- function(data){
+  hour = floor(data/100)
+  min = sprintf("%02d", data %% 100)
+  time_str = parse_time(paste0(hour, ":", min))
+  return (time_str)
+}
+```
+
+
+```{r}
+mydat2_intervals <-  mydat2_intervals %>% 
+      mutate(interval = tohours_3(interval))
 mydat2_intervals %>% head()
 ```
 ```{r}
-mydat2_intervals %>% head(30)
+mydat2_intervals %>% 
+      ggplot(aes(interval, interval_means)) + geom_line(color = 'steelblue')
+```
+```{r}
+mydat2_intervals %>% 
+  ggplot(aes(x = interval, y = interval_means)) + 
+  geom_line(lwd = 1, color = "steelblue") +
+  labs(x = "Interval    (x-axis label is in Hours)", 
+       y = "Mean Steps per 5-min interval") +
+  ggtitle("Time Series plot for Mean Steps per 5-minute Interval")
 ```
 
 
-$old approach$ 
+$old approach$ let this stay for now but delete later on before submitting
 
 
 - First, we arrange the data so as to determine the mean steps per 5-min interval. The key step is to use the pivot_wider() function, followed by appropriate summarization of the relevant columns.
@@ -343,6 +370,16 @@ meanSteps_per_Interval %>%
 
 
 #### Q2.2 5-minute interval containing the maximum number of steps
+
+new:
+
+```{r}
+mydat2_intervals %>% 
+      filter(interval_means == max(interval_means))
+```
+
+
+old - delete this one:
 
 The maximum number of steps is at 8:35AM.
 
