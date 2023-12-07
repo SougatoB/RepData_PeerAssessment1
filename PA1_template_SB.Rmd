@@ -263,48 +263,25 @@ steps_eachday %>%
 
 $new approach$
 
+For plotting the time series of the 5-min intervals and the average number of steps, it is helpful to arrange the data differently.
+
 ```{r}
-mydata %>% 
-      select(-daily_stepsums, -date) %>% 
-      summarize(min_avgs = colSums(., na.rm = TRUE))
+mydat2 <- mydat %>% 
+      pivot_wider(names_from = date, values_from = steps)
+mydat2 %>% head()
 ```
+
+Taking the row means while leaving out the interval column gives the desired output.
+
 ```{r}
-# wtf is this
-mydat %>% 
-      pivot_wider(names_from = date, values_from = steps) %>% 
-      mutate(interval_means = rowSums(., na.rm = TRUE) - interval) %>% 
+mydat2_intervals <- mydat2 %>% 
+      mutate(interval_means = round(rowMeans(select(.,-interval), 
+                                             na.rm = TRUE), 2)) %>% 
       select(interval, interval_means)
+mydat2_intervals %>% head()
 ```
 ```{r}
-#new
-# this seems to be shorter code and right approach, but -interval does not
-# look good. is there a better way?
-# and should i be using 53 or 61? can we just not deal with this like in the
-# previous step?
-mydat %>% 
-      pivot_wider(names_from = date, values_from = steps) %>% 
-      mutate(interval_means = (rowSums(., na.rm = TRUE) - interval)/53) %>% 
-      mutate(interval_means = round(interval_means, 2)) %>% 
-      select(interval, interval_means)
-```
-
-
-
-```{r}
-mydat %>% 
-      pivot_wider(names_from = date, values_from = steps) %>% 
-      summarize(interval_means = 
-                   rowSums(., na.rm = TRUE) - interval)
-```
-
-
-
-```{r}
-mydat %>% 
-      pivot_wider(names_from = date, values_from = steps) %>% 
-      mutate(interval_means = 
-                   rowSums(select(.,-interval))/61, na.rm = TRUE) %>% 
-      select(interval, interval_means)
+mydat2_intervals %>% head(30)
 ```
 
 
@@ -324,6 +301,9 @@ meanSteps_perInterval <- mydat %>%
   mutate(mean_steps_5min = round(total_steps_5min/53, 2)) %>% 
   select(interval, mean_steps_5min)
 meanSteps_perInterval %>% head()
+```
+```{r}
+meanSteps_perInterval %>% head(20)
 ```
 
 - If we look at the interval column, it still shows discontinuity; for example after 55, the next number is 100. To address this, a function is created, tohours_3(), that takes in numeric data and outputs the data in period format with hours:minutes:seconds, and with the correction for discontinuity.
