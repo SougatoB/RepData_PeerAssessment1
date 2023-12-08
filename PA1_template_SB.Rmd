@@ -405,6 +405,127 @@ mydat %>% is.na() %>% colSums()
 
 #### 3.2 Devise a strategy for filling in all of the missing values in the dataset. 
 
+new
+
+what i want to do is create a matrix that is the means of each of the minute intervals and each of the weekdays.
+
+```{r}
+mydat %>% dim
+```
+```{r, message = FALSE}
+imputedf <- mydat %>% 
+      mutate(interval = tohours_3(interval)) %>% 
+      mutate(wkday = weekdays(as.Date(date))) %>% 
+      select(-date) %>% group_by(wkday, interval) %>% 
+      summarize(mean_steps = round(mean(steps, na.rm = TRUE), 2))
+imputedf %>% head()
+```
+
+```{r}
+imputedf %>% 
+      filter(interval == 00:00:00 & wkday == 'Monday')
+```
+
+
+
+```{r}
+mydata3 <- mydat %>% 
+      mutate(interval = tohours_3(interval)) %>% 
+      mutate(wkday = weekdays(as.Date(date)))
+mydata3 %>% head()
+```
+
+```{r}
+mydata3 %>% 
+      filter(interval == 00:00:00 & wkday == 'Monday')
+```
+
+
+
+
+```{r}
+imputedf %>% filter(interval == 00:00:00 & wkday == 'Monday')
+```
+if my code is correct, 1.43 should be the answer for the nans.
+
+
+
+```{r}
+mydata3 %>% 
+      mutate(steps = ifelse(is.na(steps),
+             imputedf$mean_steps[match(interval, imputedf$interval) &
+                                       match(wkday, imputedf$wkday)], steps))
+```
+
+
+
+
+```{r}
+mydata3 %>%
+  mutate(steps = if_else(
+    is.na(steps) &
+    interval %in% imputedf$interval &
+    wkday %in% imputedf$wkday,
+    imputedf$mean_steps[match(interval, imputedf$interval) & match(wkday, imputedf$wkday)],
+    steps
+  ))
+
+```
+
+
+```{r}
+function(data){
+      if (is.na(data)){
+            
+      }
+      
+      }
+}
+```
+
+
+
+
+
+
+```{r}
+tohours_3 <- function(data){
+  hour = floor(data/100)
+  min = sprintf("%02d", data %% 100)
+  time_str = parse_time(paste0(hour, ":", min))
+  return (time_str)
+}
+```
+
+
+```{r}
+mydat %>% dim
+```
+
+
+
+```{r}
+imputefunc <- function(data, col){
+      
+}
+```
+
+
+
+```{r}
+mydat %>% 
+      mutate(date = as.Date(date)) %>% 
+      mutate(dayofweek = weekdays(date)) %>% 
+      pivot_wider(names_from = dayofweek, values_from = steps) %>% 
+      mutate
+```
+
+
+
+
+
+old:
+
 #### Strategy
 
 - Each of the missing values correspond to an interval and a day of week.
