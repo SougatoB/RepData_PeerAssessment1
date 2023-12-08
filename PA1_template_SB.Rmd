@@ -407,8 +407,17 @@ mydat %>% is.na() %>% colSums()
 
 $Strategy$
 
-It can be envisoned that the missing values for the steps taken for a particular 5min interval could be approximated reasonably well if we use the mean steps for - that day of the week, and 
-- that specific 5-minute interval.
+- Each of the missing values correspond to an interval and a day of week.
+
+- It can be envisoned that the missing values for the steps taken for a particular 5min interval could be approximated reasonably well if we use the mean steps for 
+      - that day of the week, and 
+      - that specific 5-minute interval.
+
+- It is expected that the missing value will have substantial similarity to the values corresponding to the same time of the day and the same day of the week. 
+
+- Therefore, the strategy is to identify the times and days of the missing values, and imputing these with the means of same times and days for the available data. 
+
+#### Implementation of Strategy
 
 To accomplish this, we convert the dates to weekdays, group by weekday and interval, and get the corresponding means.
 
@@ -457,9 +466,6 @@ mydata3_imputed %>% head()
 ```{r}
 mydata3_imputed %>% filter(interval == 00:00:00 & date == '2012-10-01')
 ```
-
-
-
 
 
 old:
