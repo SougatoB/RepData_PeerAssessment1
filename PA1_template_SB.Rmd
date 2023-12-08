@@ -405,13 +405,14 @@ mydat %>% is.na() %>% colSums()
 
 #### 3.2 Devise a strategy for filling in all of the missing values in the dataset. 
 
-new
+$Strategy$
 
-what i want to do is create a matrix that is the means of each of the minute intervals and each of the weekdays.
+It can be envisoned that the missing values for the steps taken for a particular 5min interval could be approximated reasonably well if we use the mean steps for - that day of the week, and 
+- that specific 5-minute interval.
 
-```{r}
-mydat %>% dim
-```
+To accomplish this, we convert the dates to weekdays, group by weekday and interval, and get the corresponding means.
+
+
 ```{r, message = FALSE}
 imputedf <- mydat %>% 
       mutate(interval = tohours_3(interval)) %>% 
@@ -421,12 +422,14 @@ imputedf <- mydat %>%
 imputedf %>% head()
 ```
 
+For a typical combination of wkday and interval, the steps taken can be predicted by mean_steps, as shown below.
+
 ```{r}
 imputedf %>% 
       filter(interval == 00:00:00 & wkday == 'Monday')
 ```
 
-
+We also add a weekday column to our original dataframe, so that we can join by weekday and interval.
 
 ```{r}
 mydata3 <- mydat %>% 
@@ -435,89 +438,24 @@ mydata3 <- mydat %>%
 mydata3 %>% head()
 ```
 
-```{r}
-mydata3 %>% 
-      filter(interval == 00:00:00 & wkday == 'Monday')
-```
+And finally,  
 
-
-
+- we carry out a left_join,
+- impute missing values using values from the mean_steps column
+- drop the mean_steps and wkday column to get back our imputed dataframe
 
 ```{r}
-imputedf %>% filter(interval == 00:00:00 & wkday == 'Monday')
-```
-if my code is correct, 1.43 should be the answer for the nans.
-
-
-
-```{r}
-mydata3 %>% 
-      mutate(steps = ifelse(is.na(steps),
-             imputedf$mean_steps[match(interval, imputedf$interval) &
-                                       match(wkday, imputedf$wkday)], steps))
-```
-
-
-
-
-```{r}
-mydata3 %>%
-  mutate(steps = if_else(
-    is.na(steps) &
-    interval %in% imputedf$interval &
-    wkday %in% imputedf$wkday,
-    imputedf$mean_steps[match(interval, imputedf$interval) & match(wkday, imputedf$wkday)],
-    steps
-  ))
-
+# this seems to work
+mydata3_imputed <- mydata3 %>% 
+      left_join(imputedf, by = c('interval', 'wkday')) %>% 
+      mutate(steps = if_else(is.na(steps), mean_steps, steps)) %>% 
+      select(-mean_steps, -wkday)
+mydata3_imputed %>% head()
 ```
 
 
 ```{r}
-function(data){
-      if (is.na(data)){
-            
-      }
-      
-      }
-}
-```
-
-
-
-
-
-
-```{r}
-tohours_3 <- function(data){
-  hour = floor(data/100)
-  min = sprintf("%02d", data %% 100)
-  time_str = parse_time(paste0(hour, ":", min))
-  return (time_str)
-}
-```
-
-
-```{r}
-mydat %>% dim
-```
-
-
-
-```{r}
-imputefunc <- function(data, col){
-      
-}
-```
-
-
-
-```{r}
-mydat %>% 
-      mutate(date = as.Date(date)) %>% 
-      mutate(dayofweek = weekdays(date)) %>% 
-      pivot_wider(names_from = dayofweek, values_from = steps) %>% 
-      mutate
+mydata3_imputed %>% filter(interval == 00:00:00 & date == '2012-10-01')
 ```
 
 
