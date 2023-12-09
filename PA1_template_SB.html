@@ -404,10 +404,11 @@ mydat &lt;- read.csv(&quot;activity.csv&quot;)</code></pre>
 <pre><code>##    steps     date interval 
 ##     2304        0        0</code></pre>
 <ul>
-<li><p>Determining the number of unique values per column.</p>
+<li>Determining the number of unique values per column.
 <ul>
-<li>there are 61 unique dates</li>
-<li>there are 288 unique intervals (5-minute periods)</li>
+<li>618 unique values for steps</li>
+<li>61 unique dates</li>
+<li>288 unique intervals (5-minute periods)</li>
 </ul></li>
 </ul>
 <pre class="r"><code>for (i in 1:3){
@@ -434,27 +435,8 @@ dates.</p>
 </ul>
 <p>Of the 2304 missing values for the steps column, it turns out that
 they are not scattered throughout the data, but the missing data are all
-on 8 specific days (288*8 = 2304 missing vals). The missing days are
-identified in the code chunk below.</p>
-<ul>
-<li>Specific dates with missing values are shown below.</li>
-</ul>
-<pre class="r"><code>mydata &lt;- mydat %&gt;% 
-      pivot_wider(names_from = interval, values_from = steps) %&gt;% 
-      mutate(missingvals = rowSums(is.na(.))) %&gt;% 
-      select(date, missingvals)
-mydata %&gt;% filter(missingvals &gt; 0)</code></pre>
-<pre><code>## # A tibble: 8 × 2
-##   date       missingvals
-##   &lt;chr&gt;            &lt;dbl&gt;
-## 1 2012-10-01         288
-## 2 2012-10-08         288
-## 3 2012-11-01         288
-## 4 2012-11-04         288
-## 5 2012-11-09         288
-## 6 2012-11-10         288
-## 7 2012-11-14         288
-## 8 2012-11-30         288</code></pre>
+concentrated on 8 specific days (288*8 = 2304 missing vals). The missing
+days are identified in the code in the Q3 section below.</p>
 </div>
 </div>
 <div id="q1-what-is-mean-total-number-of-steps-taken-per-day" class="section level2">
@@ -462,11 +444,9 @@ mydata %&gt;% filter(missingvals &gt; 0)</code></pre>
 <div id="calculate-the-total-number-of-steps-taken-per-day" class="section level4">
 <h4>1.1 Calculate the total number of steps taken per day</h4>
 <p>Total steps per day can be calculated by grouping the steps by date
-and getting the sum for each day.</p>
-<p>We notice that there are some days where totalsteps cannot be
-calculated due to missing values.</p>
-<pre class="r"><code># use this
-TotalSteps_perDay &lt;- mydat %&gt;% 
+and getting the sum for each day. We notice that there are some days
+where totalsteps cannot be calculated due to missing values.</p>
+<pre class="r"><code>TotalSteps_perDay &lt;- mydat %&gt;% 
       group_by(date) %&gt;% 
       summarize(total_steps = sum(steps)) %&gt;% 
       mutate(date = as.Date(date))
@@ -486,8 +466,7 @@ TotalSteps_perDay %&gt;% head()</code></pre>
 <p>Total steps per day are plotted as follows. Since we don’t have data
 for some of the days, there are gaps in the histogram for those
 days.</p>
-<pre class="r"><code># use this
-TotalSteps_perDay %&gt;% 
+<pre class="r"><code>TotalSteps_perDay %&gt;% 
       ggplot(aes(date, total_steps)) + 
       geom_histogram(stat = &#39;identity&#39;, fill = &#39;steelblue&#39;) +
       labs(x = &quot;Date&quot;, y = &quot;Total Steps per Day&quot;) +
@@ -498,8 +477,7 @@ TotalSteps_perDay %&gt;%
 </div>
 <div id="mean-and-median-of-the-total-number-of-steps-taken-per-day" class="section level4">
 <h4>1.3 mean and median of the total number of steps taken per day</h4>
-<pre class="r"><code># use this
-TotalSteps_perDay %&gt;% 
+<pre class="r"><code>TotalSteps_perDay %&gt;% 
       summarize(meansteps = mean(total_steps, na.rm = TRUE), 
                 mediansteps = median(total_steps, na.rm = TRUE))</code></pre>
 <pre><code>## # A tibble: 1 × 2
@@ -538,10 +516,11 @@ mydat2 %&gt;% head()</code></pre>
 ## #   `2012-10-17` &lt;int&gt;, `2012-10-18` &lt;int&gt;, `2012-10-19` &lt;int&gt;,
 ## #   `2012-10-20` &lt;int&gt;, `2012-10-21` &lt;int&gt;, `2012-10-22` &lt;int&gt;,
 ## #   `2012-10-23` &lt;int&gt;, `2012-10-24` &lt;int&gt;, `2012-10-25` &lt;int&gt;, …</code></pre>
-<p>Taking the row means while leaving out the interval column gives the
-desired output. Also, we create a function to convert the interval to
-time units, and use this function to update the datatype of the interval
-column.</p>
+<p>Next, we create a function to convert the interval to time units, and
+use this function to update the datatype of the interval column. (This
+conversion is important because, for example, the interval column, from
+55, jumps to 100, as this column comes as data type int. The function
+below converts the interval column to time units)</p>
 <pre class="r"><code># function to convert interval to time units
 tohours_3 &lt;- function(data){
   hour = floor(data/100)
@@ -549,6 +528,8 @@ tohours_3 &lt;- function(data){
   time_str = parse_time(paste0(hour, &quot;:&quot;, min))
   return (time_str)
 }</code></pre>
+<p>And finally, taking the row means while leaving out the interval
+column gives the desired output.</p>
 <pre class="r"><code># getting our dataframe with the mean steps per interval
 mydat2_intervals &lt;- mydat2 %&gt;% 
       mutate(interval_means = round(rowMeans(select(.,-interval), 
@@ -565,7 +546,7 @@ mydat2_intervals %&gt;% head()</code></pre>
 ## 4 15&#39;00&quot;             0.15
 ## 5 20&#39;00&quot;             0.08
 ## 6 25&#39;00&quot;             2.09</code></pre>
-<p>Finally, the time series plot is obtained as follows with the above
+<p>The time series plot is obtained as follows with the above
 dataframe.</p>
 <pre class="r"><code>mydat2_intervals %&gt;% 
   ggplot(aes(x = interval, y = interval_means)) + 
@@ -578,8 +559,8 @@ dataframe.</p>
 <div id="q2.2-which-5-minute-interval-on-average-contains-the-maximum-number-of-steps" class="section level4">
 <h4>Q2.2 Which 5-minute interval on average contains the maximum number
 of steps?</h4>
-<p>Based on the code below, 8:35AM is associated with the maximum number
-of steps, based on daily average number of steps.</p>
+<p>Based on the code below, the 8:35AM interval is associated with the
+maximum number of steps, based on daily average number of steps.</p>
 <pre class="r"><code>mydat2_intervals %&gt;% 
       filter(interval_means == max(interval_means))</code></pre>
 <pre><code>## # A tibble: 1 × 2
@@ -622,50 +603,39 @@ mydata %&gt;% filter(missingvals &gt; 0)</code></pre>
 the dataset.</h4>
 <p><span class="math inline">\(Strategy\)</span></p>
 <ul>
+<li><p>As shown earlier, the missing values in the current dataset are
+concentrated to certain days.</p></li>
 <li><p>Each of the missing values correspond to a specific interval and
-a specific day of week.</p></li>
+a specific day of week combination.</p></li>
 <li><p>It can be envisioned that the missing values for the steps taken
 for a particular 5min interval could be approximated reasonably well if
-we use the mean steps for - the same day of the week, AND - the same
-5-minute interval combinations.</p></li>
-<li><p>It is expected that the missing value will have substantial
-similarity to the values corresponding to the same time of the day and
-the same day of the week.</p></li>
-<li><p>Therefore, the strategy is to create a dataframe with the means
-of each weekday and interval combinations, and then use these values to
-impute the missing values corresponding to the same weekday and interval
-combinations.</p></li>
+we use the mean steps for that same ‘day of week - interval’
+combination.</p></li>
+<li><p>Therefore, the strategy is to create a dataframe that contains
+the means of each weekday and interval combinations, and then use these
+values to impute the missing values corresponding to the same weekday
+and interval combinations.</p></li>
 </ul>
 </div>
 <div id="create-a-new-dataset-that-is-equal-to-the-original-dataset-but-with-the-missing-data-filled-in." class="section level4">
 <h4>3.3 Create a new dataset that is equal to the original dataset but
 with the missing data filled in.</h4>
-</div>
-<div id="implementation-of-strategy" class="section level4">
-<h4>Implementation of Strategy</h4>
+<p><span class="math inline">\(Implementation\)</span> <span class="math inline">\(of\)</span> <span class="math inline">\(Strategy\)</span></p>
 <p>To accomplish this, we first build the dataframe imputedf, which is
-the dataframe we are going to impute from. For this, from the original
-data, we convert the dates to weekdays, group by weekday and interval,
-and get the corresponding means.</p>
+the dataframe we are going to impute from, with our weekday-interval
+combinations. For this, from the original data, we convert the dates to
+weekdays, group by weekday and interval, and get the corresponding
+means.</p>
 <pre class="r"><code>imputedf &lt;- mydat %&gt;% 
       mutate(interval = tohours_3(interval)) %&gt;% 
       mutate(wkday = weekdays(as.Date(date))) %&gt;% 
       select(-date) %&gt;% group_by(wkday, interval) %&gt;% 
       summarize(mean_steps = round(mean(steps, na.rm = TRUE), 2))
-imputedf %&gt;% head()</code></pre>
-<pre><code>## # A tibble: 6 × 3
-## # Groups:   wkday [1]
-##   wkday  interval mean_steps
-##   &lt;chr&gt;  &lt;time&gt;        &lt;dbl&gt;
-## 1 Friday 00&#39;00&quot;            0
-## 2 Friday 05&#39;00&quot;            0
-## 3 Friday 10&#39;00&quot;            0
-## 4 Friday 15&#39;00&quot;            0
-## 5 Friday 20&#39;00&quot;            0
-## 6 Friday 25&#39;00&quot;            0</code></pre>
-<p>For each combination of wkday and interval, we have an associated
-mean, mean_steps. An example is shown below:</p>
-<pre class="r"><code>imputedf %&gt;% 
+#imputedf %&gt;% head()</code></pre>
+<p>Thus, for each combination of wkday and interval, we have an
+associated mean, mean_steps; an example is shown below.</p>
+<pre class="r"><code># step mean corresponding to the first interval and Mondays
+imputedf %&gt;% 
       filter(interval == 00:00:00 &amp; wkday == &#39;Monday&#39;)</code></pre>
 <pre><code>## # A tibble: 1 × 3
 ## # Groups:   wkday [1]
@@ -673,7 +643,8 @@ mean, mean_steps. An example is shown below:</p>
 ##   &lt;chr&gt;  &lt;time&gt;        &lt;dbl&gt;
 ## 1 Monday 00&#39;00&quot;         1.43</code></pre>
 <p>For the dataframe we are going to impute missing values for, we add a
-weekday column, so that we can join by weekday and interval.</p>
+weekday column, so that we can subsequently join by weekday and
+interval.</p>
 <pre class="r"><code>mydata3 &lt;- mydat %&gt;% 
       mutate(interval = tohours_3(interval)) %&gt;% 
       mutate(wkday = weekdays(as.Date(date)))
@@ -685,15 +656,16 @@ mydata3 %&gt;% head()</code></pre>
 ## 4    NA 2012-10-01 00:15:00 Monday
 ## 5    NA 2012-10-01 00:20:00 Monday
 ## 6    NA 2012-10-01 00:25:00 Monday</code></pre>
-<p>And finally,</p>
+<p>And finally, the join step, using the code block below. The steps
+are:</p>
 <ul>
-<li>imputedf is left-joined with mydata3: - making sure only those with
-missing values are imputed - interval and wkday columns match up (by =
-c(‘interval’, ‘wkday’))</li>
-<li>missing values are imputed using values from the mean_steps
-column</li>
-<li>the mean_steps and wkday columns are dropped to get back our imputed
-dataframe</li>
+<li><p>imputedf is left-joined with mydata3:</p>
+<pre><code>- interval and wkday columns match up (by = c(&#39;interval&#39;, &#39;wkday&#39;))
+- making sure only those with missing values in mydata3 are imputed</code></pre></li>
+<li><p>missing values are imputed using values from the mean_steps
+column</p></li>
+<li><p>the mean_steps and wkday columns are dropped to get back our
+imputed dataframe</p></li>
 </ul>
 <p>The imputed new dataset is ‘mydata3_imputed’</p>
 <pre class="r"><code>mydata3_imputed &lt;- mydata3 %&gt;% 
@@ -768,8 +740,8 @@ taken per day.</p>
 of the days were missing steps data, we had NAs for some of the sums. In
 calculating the means and the medians, we had to remove the NA
 values.</p>
-<p>In contrast, with the imputed data frame, those 8 days have the
-imputed data, which involves approximations. The means and medians are
+<p>In contrast, with the imputed data frame, those 8 days now have the
+imputed data, which involved approximations. The means and medians are
 then calculated with the full data including the imputations.</p>
 <p>Thus, there is a difference in the mean and the median calculations
 with the imputed data, compared to the first part of the assignment. But
@@ -780,14 +752,14 @@ the differences are small.</p>
 of the total daily number of steps?</h4>
 <p>Since the missing values are not scattered throughout the dataframe
 but are concentrated on specific days, the total daily steps only change
-for the days which had missing values, since an imputation is involved.
+for the days which had missing values, since an imputation was involved.
 For the remaining days which had no missing values, the total daily
-steps remain the same, as shown below.</p>
+steps remain unchanged, as shown below.</p>
 <pre class="r"><code># total steps, with imputations
 imputed_totaldailysteps &lt;- mydata3_imputed %&gt;% 
       group_by(date) %&gt;% 
       summarize(totalsteps_imputed = sum(steps))</code></pre>
-<pre class="r"><code># total steps - original
+<pre class="r"><code># total steps, original
 original_totaldailysteps &lt;- mydat %&gt;% 
       group_by(date) %&gt;% 
       summarize(totalsteps_original = sum(steps))</code></pre>
@@ -856,10 +828,12 @@ corresponding mean steps for each.</p></li>
 unimputed data (with_missing).</p></li>
 <li><p>Next, we left join to get the full dataframe.</p></li>
 </ul>
-<pre class="r"><code>with_missing &lt;- mydata4 %&gt;% 
+<pre class="r"><code># dataframe with missing values
+with_missing &lt;- mydata4 %&gt;% 
       mutate(interval = tohours_3(interval)) %&gt;% 
       group_by(interval, wknd) %&gt;% 
       summarize(wMissing = round(mean(steps, na.rm = TRUE), 2))
+# dataframe without missing values
 without_missing &lt;- mydata5 %&gt;% 
       #mutate(interval = tohours_3(interval)) %&gt;% 
       group_by(wknd, interval) %&gt;% 
@@ -898,28 +872,29 @@ original data in green.</p>
 <div id="differences-between-activity-patterns-during-weekdays-vs-the-weekends" class="section level4">
 <h4>Differences between activity patterns during weekdays vs the
 weekends</h4>
-<p>Going through this data and making plots gave us an idea regarding
-the mean steps during weekday and weekends, at various hours.</p>
+<p>Going through this data and making plots gives us insights regarding
+the mean steps during weekday and weekends, at various intervals. A few
+observations are noted below:</p>
 <ul>
-<li>Interestingly, imputation only made a slight difference in the
-number of steps taken during the weekday and negligible difference for
-the weekend, as seen by the near overlap of the red line representing
-with imputations and the blue line representing without imputations. The
-slight difference may be an indication that our imputation strategy is
-working well.</li>
 <li>It looks like the activity during 8-9AM is much higher during
-weekdays, which is probably consistent with people going to work during
-these hours.</li>
+weekdays as compared to weekends, which is probably consistent with
+people going to work during these hours.</li>
 <li>The mean activity between 10AM and 4PM appears to be higher during
-the weekends, consistent with people being out and about during the
-weekend instead of being at work during weekdays.</li>
+the weekends, consistent with people being out and about during weekends
+instead of being at work during weekdays.</li>
 <li>During the weekends, people seem to be more active in the evenings
 after 8PM, consistent with people staying up late during weekends.</li>
 <li>From 5-8AM, and 4-6PM, there is considerably more activity during
-the week compared to weekends; this could be due to people getting ready
-to go to work or getting their exercise in the mornings/evenings, while
-more people are probably likely to sleep in during the weekend
+the week compared to weekends; this is likely due to people getting
+ready to go to work or getting their exercise in the mornings/evenings,
+while more people are probably likely to sleep in during the weekend
 mornings.</li>
+<li>Imputation seems to have made only made a slight difference in the
+number of steps taken during the weekday and an almost negligible
+difference for the weekend, as seen by the near overlap of the red line
+representing with imputations and the blue line representing without
+imputations. The slight difference may be an indication that our
+imputation strategy was a reasonable one.</li>
 </ul>
 </div>
 </div>

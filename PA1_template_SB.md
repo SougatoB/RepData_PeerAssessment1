@@ -84,9 +84,9 @@ mydat %>% is.na() %>% colSums()
 
 
 - Determining the number of unique values per column.
-
-  - there are 61 unique dates
-  - there are 288 unique intervals (5-minute periods)
+  - 618 unique values for steps
+  - 61 unique dates
+  - 288 unique intervals (5-minute periods)
 
 
 ```r
@@ -122,45 +122,17 @@ mydat %>%
 
 - Determining where the missing values are located.
 
-Of the 2304 missing values for the steps column, it turns out that they are not scattered throughout the data, but the missing data are all on 8 specific days (288*8 = 2304 missing vals). The missing days are identified in the code chunk below.
-
-- Specific dates with missing values are shown below.
-
-
-```r
-mydata <- mydat %>% 
-      pivot_wider(names_from = interval, values_from = steps) %>% 
-      mutate(missingvals = rowSums(is.na(.))) %>% 
-      select(date, missingvals)
-mydata %>% filter(missingvals > 0)
-```
-
-```
-## # A tibble: 8 × 2
-##   date       missingvals
-##   <chr>            <dbl>
-## 1 2012-10-01         288
-## 2 2012-10-08         288
-## 3 2012-11-01         288
-## 4 2012-11-04         288
-## 5 2012-11-09         288
-## 6 2012-11-10         288
-## 7 2012-11-14         288
-## 8 2012-11-30         288
-```
+Of the 2304 missing values for the steps column, it turns out that they are not scattered throughout the data, but the missing data are all concentrated on 8 specific days (288*8 = 2304 missing vals). The missing days are identified in the code in the Q3 section below.
 
 
 ## Q1: What is mean total number of steps taken per day?
 
 #### 1.1 Calculate the total number of steps taken per day
 
-Total steps per day can be calculated by grouping the steps by date and getting the sum for each day.
-
-We notice that there are some days where totalsteps cannot be calculated due to missing values.
+Total steps per day can be calculated by grouping the steps by date and getting the sum for each day. We notice that there are some days where totalsteps cannot be calculated due to missing values.
 
 
 ```r
-# use this
 TotalSteps_perDay <- mydat %>% 
       group_by(date) %>% 
       summarize(total_steps = sum(steps)) %>% 
@@ -187,7 +159,6 @@ Total steps per day are plotted as follows. Since we don't have data for some of
 
 
 ```r
-# use this
 TotalSteps_perDay %>% 
       ggplot(aes(date, total_steps)) + 
       geom_histogram(stat = 'identity', fill = 'steelblue') +
@@ -197,14 +168,13 @@ TotalSteps_perDay %>%
       ggtitle("Total Steps per Day from Oct 1, 2012 to Nov 30, 2012")
 ```
 
-![](PA1_template_SB_files/figure-html/unnamed-chunk-10-1.png)<!-- -->
+![](PA1_template_SB_files/figure-html/unnamed-chunk-9-1.png)<!-- -->
 
 
 #### 1.3 mean and median of the total number of steps taken per day
 
 
 ```r
-# use this
 TotalSteps_perDay %>% 
       summarize(meansteps = mean(total_steps, na.rm = TRUE), 
                 mediansteps = median(total_steps, na.rm = TRUE))
@@ -253,7 +223,7 @@ mydat2 %>% head()
 ## #   `2012-10-23` <int>, `2012-10-24` <int>, `2012-10-25` <int>, …
 ```
 
-Taking the row means while leaving out the interval column gives the desired output. Also, we create a function to convert the interval to time units, and use this function to update the datatype of the interval column.
+Next, we create a function to convert the interval to time units, and use this function to update the datatype of the interval column. (This conversion is important because, for example, the interval column, from 55, jumps to 100, as this column comes as data type int. The function below converts the interval column to time units)
 
 
 
@@ -267,7 +237,7 @@ tohours_3 <- function(data){
 }
 ```
 
-
+And finally, taking the row means while leaving out the interval column gives the desired output. 
 
 
 ```r
@@ -291,7 +261,7 @@ mydat2_intervals %>% head()
 ## 5 20'00"             0.08
 ## 6 25'00"             2.09
 ```
-Finally, the time series plot is obtained as follows with the above dataframe.
+The time series plot is obtained as follows with the above dataframe.
 
 
 ```r
@@ -303,13 +273,13 @@ mydat2_intervals %>%
   ggtitle("Time Series plot for Mean Steps per 5-minute Interval")
 ```
 
-![](PA1_template_SB_files/figure-html/unnamed-chunk-15-1.png)<!-- -->
+![](PA1_template_SB_files/figure-html/unnamed-chunk-14-1.png)<!-- -->
 
 
 
 #### Q2.2 Which 5-minute interval on average contains the maximum number of steps?
 
-Based on the code below, 8:35AM is associated with the maximum number of steps, based on daily average number of steps.
+Based on the code below, the 8:35AM interval is associated with the maximum number of steps, based on daily average number of steps.
 
 
 
@@ -373,23 +343,21 @@ mydata %>% filter(missingvals > 0)
 
 $Strategy$
 
-- Each of the missing values correspond to a specific interval and a specific day of week.
+- As shown earlier, the missing values in the current dataset are concentrated to certain days.
 
-- It can be envisioned that the missing values for the steps taken for a particular 5min interval could be approximated reasonably well if we use the mean steps for 
-      - the same day of the week, AND 
-      - the same 5-minute interval combinations.
+- Each of the missing values correspond to a specific interval and a specific day of week combination.
 
-- It is expected that the missing value will have substantial similarity to the values corresponding to the same time of the day and the same day of the week. 
+- It can be envisioned that the missing values for the steps taken for a particular 5min interval could be approximated reasonably well if we use the mean steps for that same 'day of week - interval' combination.
 
-- Therefore, the strategy is to create a dataframe with the means of each weekday and interval combinations, and then use these values to impute the missing values corresponding to the same weekday and interval combinations.
+
+- Therefore, the strategy is to create a dataframe that contains the means of each weekday and interval combinations, and then use these values to impute the missing values corresponding to the same weekday and interval combinations.
 
 #### 3.3  Create a new dataset that is equal to the original dataset but with the missing data filled in.
 
 
+$Implementation$ $of$ $Strategy$
 
-#### Implementation of Strategy
-
-To accomplish this, we first build the dataframe imputedf, which is the dataframe we are going to impute from. For this, from the original data, we convert the dates to weekdays, group by weekday and interval, and get the corresponding means.
+To accomplish this, we first build the dataframe imputedf, which is the dataframe we are going to impute from, with our weekday-interval combinations. For this, from the original data, we convert the dates to weekdays, group by weekday and interval, and get the corresponding means.
 
 
 
@@ -399,26 +367,14 @@ imputedf <- mydat %>%
       mutate(wkday = weekdays(as.Date(date))) %>% 
       select(-date) %>% group_by(wkday, interval) %>% 
       summarize(mean_steps = round(mean(steps, na.rm = TRUE), 2))
-imputedf %>% head()
+#imputedf %>% head()
 ```
 
-```
-## # A tibble: 6 × 3
-## # Groups:   wkday [1]
-##   wkday  interval mean_steps
-##   <chr>  <time>        <dbl>
-## 1 Friday 00'00"            0
-## 2 Friday 05'00"            0
-## 3 Friday 10'00"            0
-## 4 Friday 15'00"            0
-## 5 Friday 20'00"            0
-## 6 Friday 25'00"            0
-```
-
-For each combination of wkday and interval, we have an associated mean, mean_steps. An example is shown below:
+Thus, for each combination of wkday and interval, we have an associated mean, mean_steps; an example is shown below.
 
 
 ```r
+# step mean corresponding to the first interval and Mondays
 imputedf %>% 
       filter(interval == 00:00:00 & wkday == 'Monday')
 ```
@@ -431,7 +387,7 @@ imputedf %>%
 ## 1 Monday 00'00"         1.43
 ```
 
-For the dataframe we are going to impute missing values for, we add a weekday column, so that we can join by weekday and interval.
+For the dataframe we are going to impute missing values for, we add a weekday column, so that we can subsequently join by weekday and interval.
 
 
 ```r
@@ -451,11 +407,12 @@ mydata3 %>% head()
 ## 6    NA 2012-10-01 00:25:00 Monday
 ```
 
-And finally,  
+And finally, the join step, using the code block below. The steps are:
 
-- imputedf is left-joined with mydata3:
-      - making sure only those with missing values are imputed
+- imputedf is left-joined with mydata3:  
+
       - interval and wkday columns match up (by = c('interval', 'wkday'))
+      - making sure only those with missing values in mydata3 are imputed
 - missing values are imputed using values from the mean_steps column
 - the mean_steps and wkday columns are dropped to get back our imputed dataframe
 
@@ -513,7 +470,7 @@ mydata3_imputed %>%
       ggtitle("Total Steps per Day from Oct 1, 2012 to Nov 30, 2012")
 ```
 
-![](PA1_template_SB_files/figure-html/unnamed-chunk-24-1.png)<!-- -->
+![](PA1_template_SB_files/figure-html/unnamed-chunk-23-1.png)<!-- -->
 
 
 #### 3.4.2  Calculation of the mean and median total number of steps taken per day
@@ -567,7 +524,7 @@ Yes, there is a small difference in the means and the medians, between the imput
 
 With the original data, when we summed the daily steps, since eight of the days were missing steps data, we had NAs for some of the sums. In calculating the means and the medians, we had to remove the NA values.
 
-In contrast, with the imputed data frame, those 8 days have the imputed data, which involves approximations. The means and medians are then calculated with the full data including the imputations.
+In contrast, with the imputed data frame, those 8 days now have the imputed data, which involved approximations. The means and medians are then calculated with the full data including the imputations.
 
 Thus, there is a difference in the mean and the median calculations with the imputed data, compared to the first part of the assignment. But the differences are small.
 
@@ -575,7 +532,7 @@ Thus, there is a difference in the mean and the median calculations with the imp
 
 #### 3.4.4 What is the impact of imputing missing data on the estimates of the total daily number of steps?
 
-Since the missing values are not scattered throughout the dataframe but are concentrated on specific days, the total daily steps only change for the days which had missing values, since an imputation is involved. For the remaining days which had no missing values, the total daily steps remain the same, as shown below.
+Since the missing values are not scattered throughout the dataframe but are concentrated on specific days, the total daily steps only change for the days which had missing values, since an imputation was involved. For the remaining days which had no missing values, the total daily steps remain unchanged, as shown below.
 
 
 
@@ -589,7 +546,7 @@ imputed_totaldailysteps <- mydata3_imputed %>%
 
 
 ```r
-# total steps - original
+# total steps, original
 original_totaldailysteps <- mydat %>% 
       group_by(date) %>% 
       summarize(totalsteps_original = sum(steps))
@@ -681,10 +638,12 @@ mydata5 %>% head()
 
 
 ```r
+# dataframe with missing values
 with_missing <- mydata4 %>% 
       mutate(interval = tohours_3(interval)) %>% 
       group_by(interval, wknd) %>% 
       summarize(wMissing = round(mean(steps, na.rm = TRUE), 2))
+# dataframe without missing values
 without_missing <- mydata5 %>% 
       #mutate(interval = tohours_3(interval)) %>% 
       group_by(wknd, interval) %>% 
@@ -711,6 +670,7 @@ fulldata %>% head()
 ## 5 05'00"   weekday wMissing            0.46
 ## 6 05'00"   weekday withoutMissing      0.45
 ```
+
 Next, we make a panel plot with fulldata, the two panels representing the mean steps per interval on weekdays vs. on the weekends. 
 
 In each of the plots, the imputed data is plotted in red, and the original data in green.
@@ -726,18 +686,19 @@ fulldata %>%
       ggtitle("Average Steps per interval: Weekdays vs. the Weekend")
 ```
 
-![](PA1_template_SB_files/figure-html/unnamed-chunk-34-1.png)<!-- -->
+![](PA1_template_SB_files/figure-html/unnamed-chunk-33-1.png)<!-- -->
 
 
 #### Differences between activity patterns during weekdays vs the weekends
 
-Going through this data and making plots gave us an idea regarding the mean steps during weekday and weekends, at various hours.
+Going through this data and making plots gives us insights regarding the mean steps during weekday and weekends, at various intervals. A few observations are noted below:
 
-  - Interestingly, imputation only made a slight difference in the number of steps taken during the weekday and negligible difference for the weekend, as seen by the near overlap of the red line representing with imputations and the blue line representing without imputations. The slight difference may be an indication that our imputation strategy is working well.
-  - It looks like the activity during 8-9AM is much higher during weekdays, which is probably consistent with people going to work during these hours.
-  - The mean activity between 10AM and 4PM appears to be higher during the weekends, consistent with people being out and about during the weekend instead of being at work during weekdays.
+
+  - It looks like the activity during 8-9AM is much higher during weekdays as compared to weekends, which is probably consistent with people going to work during these hours.
+  - The mean activity between 10AM and 4PM appears to be higher during the weekends, consistent with people being out and about during weekends instead of being at work during weekdays.
   - During the weekends, people seem to be more active in the evenings after 8PM, consistent with people staying up late during weekends.
-  - From 5-8AM, and 4-6PM, there is considerably more activity during the week compared to weekends; this could be due to people getting ready to go to work or getting their exercise in the mornings/evenings, while more people are probably likely to sleep in during the weekend mornings.
+  - From 5-8AM, and 4-6PM, there is considerably more activity during the week compared to weekends; this is likely due to people getting ready to go to work or getting their exercise in the mornings/evenings, while more people are probably likely to sleep in during the weekend mornings.
+  - Imputation seems to have made only made a slight difference in the number of steps taken during the weekday and an almost negligible difference for the weekend, as seen by the near overlap of the red line representing with imputations and the blue line representing without imputations. The slight difference may be an indication that our imputation strategy was a reasonable one.
 
 
 
