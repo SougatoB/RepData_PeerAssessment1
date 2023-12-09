@@ -449,127 +449,22 @@ mydat %>% is.na() %>% colSums()
 
 
 #### 3.2 Devise a strategy for filling in all of the missing values in the dataset. 
-new:
 
 $Strategy$
 
 - Each of the missing values correspond to an interval and a day of week.
 
-- It can be envisoned that the missing values for the steps taken for a particular 5min interval could be approximated reasonably well if we use the mean steps for 
-      - that day of the week, and 
-      - that specific 5-minute interval.
+- It can be envisioned that the missing values for the steps taken for a particular 5min interval could be approximated reasonably well if we use the mean steps for 
+      - the same day of the week, and 
+      - the same 5-minute interval.
 
 - It is expected that the missing value will have substantial similarity to the values corresponding to the same time of the day and the same day of the week. 
 
-- Therefore, the strategy is to identify the times and days of the missing values, and imputing these with the means of same times and days for the available data. 
-
-#### Implementation of Strategy
-
-To accomplish this, we convert the dates to weekdays, group by weekday and interval, and get the corresponding means.
-
-
-```{r, message = FALSE}
-imputedf <- mydat %>% 
-      mutate(interval = tohours_3(interval)) %>% 
-      mutate(wkday = weekdays(as.Date(date))) %>% 
-      select(-date) %>% group_by(wkday, interval) %>% 
-      summarize(mean_steps = round(mean(steps, na.rm = TRUE), 2))
-imputedf %>% head()
-```
-
-For a typical combination of wkday and interval, the steps taken can be predicted by mean_steps, as shown below.
-
-```{r}
-imputedf %>% 
-      filter(interval == 00:00:00 & wkday == 'Monday')
-```
-
-We also add a weekday column to our original dataframe, so that we can join by weekday and interval.
-
-```{r}
-mydata3 <- mydat %>% 
-      mutate(interval = tohours_3(interval)) %>% 
-      mutate(wkday = weekdays(as.Date(date)))
-mydata3 %>% head()
-```
-
-And finally,  
-
-- we carry out a left_join,
-- impute missing values using values from the mean_steps column
-- drop the mean_steps and wkday column to get back our imputed dataframe
-
-```{r}
-# this seems to work
-mydata3_imputed <- mydata3 %>% 
-      left_join(imputedf, by = c('interval', 'wkday')) %>% 
-      mutate(steps = if_else(is.na(steps), mean_steps, steps)) %>% 
-      select(-mean_steps, -wkday)
-mydata3_imputed %>% head()
-```
-
-
-```{r}
-mydata3_imputed %>% filter(interval == 00:00:00 & date == '2012-10-01')
-```
-
-
-old:
-
-#### Strategy
-
-- Each of the missing values correspond to an interval and a day of week.
-
-- It is expected that the missing value will have substantial similarity to the values corresponding to the same time of the day and the same day of the week. 
-
-- Therefore, the strategy is to identify the times and days of the missing values, and imputing these with the means of same times and days for the available data. 
-
-- For example, if there is a missing value for 19:05 hours for a Tuesday, we shall find impute for this missing value with the mean of available data for Tuesdays for the same time/time interval, 19:05 hours.
-
-- Therefore, our approach here would be to impute these missing values with the averages of these same weekday and interval combinations.
-
-#### Implementation of Strategy
-
-The above strategy is implemented in the following 5 steps.
-
-- The averages are computed as follows.
-
-- Step 1: The day of week is calculated
-
-```{r}
-mydata_days <- mydat %>% 
-  mutate(dayofweek = wday(ymd(mydat$date), label = TRUE))
-mydata_days %>% head()
-```
-
-- Step 2: We then group by dayofweek and interval, and compute the means
-
-```{r, message=FALSE}
-comp_Means <- mydata_days %>% 
-  group_by(dayofweek, interval) %>% 
-  summarize(meanSteps = round(mean(steps, na.rm = TRUE),1))
-comp_Means %>% head()
-```
-- Step 3: A function is then written which looks at the computed means corresponding to the same day of week and the same 5-minute interval, and uses this value to impute the original data with the missing values.
-
-```{r}
-missing_imputes <- function(df_w_missing, df_w_imputes){
-  for (i in 1:nrow(df_w_missing)){
-    if (is.na(df_w_missing$steps[i]) == TRUE){
-      valDay = df_w_missing$dayofweek[i]
-      valInterval = df_w_missing$interval[i]
-      df_w_missing$steps[i] = (df_w_imputes %>% 
-                                 filter(dayofweek == valDay & interval == valInterval))$meanSteps
-    }
-  }
-  return (df_w_missing)
-}
-```
-
+- Therefore, the strategy is to create a dataframe with the means of each weekday and interval combinations, and then use these values to impute the missing values corresponding to the same weekday and interval combinations.
 
 #### 3.3  Create a new dataset that is equal to the original dataset but with the missing data filled in.
 
-new:
+
 
 #### Implementation of Strategy
 
@@ -582,10 +477,10 @@ imputedf <- mydat %>%
       mutate(wkday = weekdays(as.Date(date))) %>% 
       select(-date) %>% group_by(wkday, interval) %>% 
       summarize(mean_steps = round(mean(steps, na.rm = TRUE), 2))
-imputedf %>% head()
+#imputedf %>% head()
 ```
 
-For a typical combination of wkday and interval, the steps taken can be predicted by mean_steps, as shown below.
+For each combination of wkday and interval, we have an associated mean, mean_steps. An example is shown below:
 
 ```{r}
 imputedf %>% 
@@ -603,11 +498,11 @@ mydata3 %>% head()
 
 And finally,  
 
-- we carry out a left_join
+- imputedf is left-joined with mydata3:
       - making sure only those with missing values are imputed
       - interval and wkday columns match up (by = c('interval', 'wkday'))
-- impute missing values using values from the mean_steps column
-- drop the mean_steps and wkday column to get back our imputed dataframe
+- missing values are imputed using values from the mean_steps column
+- the mean_steps and wkday columns are dropped to get back our imputed dataframe
 
 The imputed new dataset is 'mydata3_imputed'
 
@@ -625,34 +520,6 @@ At the end of the imputation, we are left with zero missing values.
 mydata3_imputed %>% is.na() %>% colSums()
 ```
 
-
-
-
-
-
-old:
-
-- Step 4: We use the above function to impute the missing values, and call the new dataframe imputed_df. The 'dayofweek' is the additional column in this data frame.
-(this step takes a couple of minutes to run)
-
-
-```{r}
-imputed_df <- missing_imputes(mydata_days, comp_Means)
-```
-
-- Step 5: Finally, we get rid of the dayofweek column to get the full dataframe corresponding to our original data, and with the missing values imputed.
-
-```{r}
-imputed_df_2 <- imputed_df %>% 
-  select(-dayofweek)
-imputed_df_2 %>% head()
-```
-
-We have now gotten rid of all of the missing values.
-
-```{r}
-imputed_df_2 %>% is.na() %>% colSums()
-```
 
 
 #### 3.4.1 Make a histogram of the total number of steps taken each day
@@ -879,7 +746,8 @@ steps_eachday_imputed %>%
 
 #### 4.1 Create a new factor variable in the dataset with two levels – “weekday” and “weekend”
 
-new:
+Below, we create the factor variable with the original data as well as the imputed data from the earlier steps.
+
 
 ```{r}
 # with original data
@@ -904,60 +772,17 @@ mydata5 %>% head()
 
 
 
-
-old:
-
-
-```{r}
-imputed_and_wday <- imputed_df_2 %>% 
-  mutate(dayofweek = wday(ymd(date), label = TRUE)) %>% 
-  mutate(week_or_wknd = as.factor(ifelse(dayofweek %in% c('Sat', 'Sun'), 'weekend', 'weekday'))) %>% 
-  select(-dayofweek)
-imputed_and_wday %>% head()
-```
-
-
 #### 4.2 Make a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
 
-new:
 
+- To make the panel plots, we create two dataframes that show whether it is a weekday or a weekend, and the intervals, and corresponding mean steps for each.
 
-```{r, message = F}
-# with missing values
-# go forward with this one
-mydata4 %>% 
-      mutate(interval = tohours_3(interval)) %>% 
-      group_by(interval, wknd) %>% 
-      summarize(meansteps = round(mean(steps, na.rm = TRUE), 2)) %>% 
-      ggplot(aes(interval, meansteps)) + 
-      geom_line(lwd = 1, color = 'steelblue') +
-      facet_grid(wknd~.)
-```
+- We do this with both the imputed data (without_missing) and the unimputed data (with_missing).
 
+- Next, we left join to get the full dataframe.
 
-this is the second part with imputed data to start with.
 
 ```{r, message=F}
-# go forward with this one
-mydata5 %>% 
-      group_by(interval, wknd) %>% 
-      summarize(meansteps = round(mean(steps), 2)) %>% 
-      ggplot(aes(interval, meansteps)) + geom_line(lwd = 1, 
-                                                   color = 'steelblue') +
-      facet_grid(wknd~.)
-```
-
-
-
-```{r}
-# with imputed data
-mydata5 %>% 
-      #mutate(interval = tohours_3(interval)) %>% 
-      group_by(wknd, interval) %>% 
-      summarize(meansteps = round(mean(steps, na.rm = TRUE), 2))
-```
-
-```{r}
 with_missing <- mydata4 %>% 
       mutate(interval = tohours_3(interval)) %>% 
       group_by(interval, wknd) %>% 
@@ -969,17 +794,19 @@ without_missing <- mydata5 %>%
 # using left join to have all the data in the same dataframe
 fulldata <- with_missing %>% 
       left_join(without_missing, by = c('interval', 'wknd')) %>% 
-      pivot_longer(3:4, names_to = 'miss_ornot', values_to = 'mean_vals') %>% 
-      mutate(miss_ornot = as.factor(miss_ornot))
+      pivot_longer(3:4, names_to = 'missing', 
+                   values_to = 'mean_vals') %>% 
+      mutate(missing = as.factor(missing))
 
 fulldata %>% head()
 ```
+Next, we make a panel plot with fulldata, the two panels representing the mean steps per interval on weekdays vs. on the weekends. 
 
+In each of the plots, the imputed data is plotted in red, and the original data in green.
 
 ```{r}
-# use this
 fulldata %>% 
-      ggplot(aes(interval, mean_vals, color = miss_ornot)) +
+      ggplot(aes(interval, mean_vals, color = missing)) +
       geom_line(lwd = 1) +
       facet_grid(wknd~.) +
       labs(x = "Time in hours (at 5-min intervals)",
@@ -988,61 +815,15 @@ fulldata %>%
 ```
 
 
+#### Differences between activity patterns during weekdays vs the weekends
 
-```{r}
-with_missing %>% 
-      left_join(without_missing, by = c('interval', 'wknd')) %>% 
-      pivot_longer(3:4, names_to = 'miss_ornot', values_to = 'mean_vals') %>% 
-      ggplot(aes(interval, mean_vals, color = miss_ornot)) +
-      geom_line(lwd = 1) +
-      facet_grid(wknd~.)
-```
+Going through this data and making plots gave us an idea regarding the mean steps during weekday and weekends, at various hours.
 
-```{r}
-mydata4 %>% 
-      filter(is.na(steps)) %>% 
-      count(wknd)
-      
-```
-
-
-
-
-
-
-
-
-old:
-
-- First we arrange our data so that we have the mean steps per interval for each of the factor levels, weekday and weekend.
-
-```{r, message=FALSE}
-meanSteps_wk_vs_wknd <- imputed_and_wday %>% 
-  select(-date) %>% 
-  mutate(interval = tohours_3(interval)) %>% 
-  group_by(interval, week_or_wknd) %>% 
-  summarize(mean_steps = round(mean(steps), 2))
-meanSteps_wk_vs_wknd %>% head()
-```
-- Next, we plot the average number of steps taken per 5-minute interval, and use facet_grid() to demonstrate the patterns for the week vs. the weekend.
-
-
-```{r, warning = FALSE}
-meanSteps_wk_vs_wknd %>% 
-  ggplot(aes(x = interval, y = mean_steps)) +
-  geom_line(size = 1, color = "steelblue") +
-  facet_grid(week_or_wknd~.) +
-  labs(x = "Time in hours (at 5-min intervals)",
-       y = "Average number of steps taken") +
-  ggtitle("Average Number of Daily Steps: Weekdays vs. the Weekend")
-```
-
-- Some Observations:
-
-  - It looks like the activity during 8-9AM is much higher during weekdays, which is probably consistent with our expectations, as people travel to work during these hours.
-  - The mean activity between 10AM and 4PM appears to be higher during the weekends, consistent with people being out and about instead of being at work.
-  - During the weekends, people seem to be more active in the evenings after 8PM.
-  - From 5-8AM, and 4-6PM, there is considerably more activity during the week compared to weekends; this is probably due to people getting ready to go to work or getting their exercise in the mornings/evenings, while more people are probably likely to sleep in during the weekend mornings.
+  - Interestingly, imputation only made a slight difference in the number of steps taken during the weekday and negligible difference for the weekend, as seen by the near overlap of the red line representing with imputations and the blue line representing without imputations. The slight difference may be an indication that our imputation strategy is working well.
+  - It looks like the activity during 8-9AM is much higher during weekdays, which is probably consistent with people going to work during these hours.
+  - The mean activity between 10AM and 4PM appears to be higher during the weekends, consistent with people being out and about during the weekend instead of being at work during weekdays.
+  - During the weekends, people seem to be more active in the evenings after 8PM, consistent with people staying up late during weekends.
+  - From 5-8AM, and 4-6PM, there is considerably more activity during the week compared to weekends; this could be due to people getting ready to go to work or getting their exercise in the mornings/evenings, while more people are probably likely to sleep in during the weekend mornings.
 
 
 
