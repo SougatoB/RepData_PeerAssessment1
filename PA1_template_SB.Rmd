@@ -240,12 +240,57 @@ steps_eachday %>%
 This information is obtained using the summarize() function on the daily_stepsums column
 
 
+### something might be wrong in this step, as i think we are supposed to find the mean steps per day, not the overall mean steps.
+
 ```{r}
 #new
 mydata %>% 
       summarize(median_steps = median(daily_stepsums, na.rm = TRUE),
                 mean_steps = mean(daily_stepsums, na.rm = TRUE))
 ```
+```{r}
+mydat
+```
+
+```{r}
+mydat %>% 
+      pivot_wider(names_from = interval, values_from = steps) %>% 
+      mutate(mean_steps = rowMeans(select(., -date), na.rm = TRUE)) %>% 
+      select(date, mean_steps)
+```
+### major issue - not being able to get rid of null values
+
+understandable, as some dates do not have any values at all
+
+```{r}
+mydat %>% 
+      pivot_wider(names_from = interval, values_from = steps) %>% 
+      mutate(mean_steps = rowMeans(across(-date), na.rm = TRUE, dims = 1)) %>% 
+      select(date, mean_steps)
+```
+```{r}
+mydat %>% 
+      group_by(date) %>% 
+      mean(steps, na.rm = TRUE)
+```
+
+
+
+```{r}
+#nope
+mydat %>% 
+      mutate(date = as.Date(date)) %>% 
+      group_by(date) %>% 
+      summarize(meansteps = round(mean(steps), 2), 
+                mediansteps = round(median(steps), 2)) 
+```
+
+
+
+
+
+
+
 $can leave this out$
 
 Mean and median total steps per day are calculated as follows.
@@ -404,6 +449,7 @@ mydat %>% is.na() %>% colSums()
 
 
 #### 3.2 Devise a strategy for filling in all of the missing values in the dataset. 
+new:
 
 $Strategy$
 
@@ -523,6 +569,69 @@ missing_imputes <- function(df_w_missing, df_w_imputes){
 
 #### 3.3  Create a new dataset that is equal to the original dataset but with the missing data filled in.
 
+new:
+
+#### Implementation of Strategy
+
+To accomplish this, we first build the dataframe imputedf, which is the dataframe we are going to impute from. For this, from the original data, we convert the dates to weekdays, group by weekday and interval, and get the corresponding means.
+
+
+```{r, message = FALSE}
+imputedf <- mydat %>% 
+      mutate(interval = tohours_3(interval)) %>% 
+      mutate(wkday = weekdays(as.Date(date))) %>% 
+      select(-date) %>% group_by(wkday, interval) %>% 
+      summarize(mean_steps = round(mean(steps, na.rm = TRUE), 2))
+imputedf %>% head()
+```
+
+For a typical combination of wkday and interval, the steps taken can be predicted by mean_steps, as shown below.
+
+```{r}
+imputedf %>% 
+      filter(interval == 00:00:00 & wkday == 'Monday')
+```
+
+For the dataframe we are going to impute missing values for, we add a weekday column, so that we can join by weekday and interval.
+
+```{r}
+mydata3 <- mydat %>% 
+      mutate(interval = tohours_3(interval)) %>% 
+      mutate(wkday = weekdays(as.Date(date)))
+mydata3 %>% head()
+```
+
+And finally,  
+
+- we carry out a left_join
+      - making sure only those with missing values are imputed
+      - interval and wkday columns match up (by = c('interval', 'wkday'))
+- impute missing values using values from the mean_steps column
+- drop the mean_steps and wkday column to get back our imputed dataframe
+
+The imputed new dataset is 'mydata3_imputed'
+
+```{r}
+# this seems to work
+mydata3_imputed <- mydata3 %>% 
+      left_join(imputedf, by = c('interval', 'wkday')) %>% 
+      mutate(steps = if_else(is.na(steps), mean_steps, steps)) %>% 
+      select(-mean_steps, -wkday)
+mydata3_imputed %>% head()
+```
+At the end of the imputation, we are left with zero missing values.
+
+```{r}
+mydata3_imputed %>% is.na() %>% colSums()
+```
+
+
+
+
+
+
+old:
+
 - Step 4: We use the above function to impute the missing values, and call the new dataframe imputed_df. The 'dayofweek' is the additional column in this data frame.
 (this step takes a couple of minutes to run)
 
@@ -547,6 +656,38 @@ imputed_df_2 %>% is.na() %>% colSums()
 
 
 #### 3.4.1 Make a histogram of the total number of steps taken each day
+
+new:
+
+The total number of steps taken per day can be calculated using our imputed data frame as follows:
+
+
+```{r}
+mydata3_imputed %>% 
+      mutate(date = as.Date(date)) %>% 
+      group_by(date) %>% 
+      summarize(steps_perday = sum(steps)) %>% head()
+```
+
+
+
+```{r, warning=F}
+mydata3_imputed %>% 
+      mutate(date = as.Date(date)) %>% 
+      group_by(date) %>% 
+      summarize(steps_perday = sum(steps)) %>% 
+      ggplot(aes(date, steps_perday)) +
+      geom_histogram(stat = "identity", fill = "steelblue") +
+      labs(x = "Date", y = "Total Steps per Day") +
+      scale_x_date(date_labels = "%m/%d", date_breaks = "7 days") +
+      theme(axis.text.x = element_text(angle = 45, hjust=1)) + 
+      ggtitle("Total Steps per Day from Oct 1, 2012 to Nov 30, 2012")
+```
+
+
+
+
+old:
 
 - Using the exact same steps as in question 1, our new dataframe imputed_df_2 was processed, which now has the steps_perday_imputed as the column with the imputed values of steps per day.
 
@@ -576,6 +717,74 @@ steps_eachday_imputed %>%
 
 #### 3.4.2  Calculation of the mean and median total number of steps taken per day
 
+new:
+
+
+To find this, we write a function that groups the data by date and calculates the total steps taken per day. We then summarize with the mean and median total steps.
+
+```{r}
+perday_meansmedians <- function(data){
+      updateddata = data %>% 
+            group_by(date) %>% 
+            summarize(total_steps = sum(steps)) %>%
+            summarize(mean_totalsteps = mean(total_steps, na.rm = TRUE),
+                      median_totalsteps = median(total_steps, na.rm = TRUE))
+      return (updateddata)
+}
+```
+
+Applying this function to the imputed dataframe:
+
+```{r}
+perday_meansmedians(mydata3_imputed)
+```
+And applying this to the original dataframe:
+
+```{r}
+perday_meansmedians(mydat)
+```
+
+
+```{r}
+# this is the correct one, but having a function looks more slick
+mydata3_imputed %>% 
+      group_by(date) %>% 
+      summarize(total_steps = sum(steps)) %>% 
+      summarize(mean_totalsteps = mean(total_steps),
+                median_totalsteps = median(total_steps))
+```
+
+And with the original dataframe, the mean and the medians are calculated using the same procedure as follows.
+
+```{r}
+mydat %>% 
+      group_by(date) %>% 
+      summarize(total_steps = sum(steps)) %>% 
+      summarize(mean_totalsteps = mean(total_steps, na.rm = TRUE),
+                median_totalsteps = median(total_steps, na.rm = TRUE))
+```
+
+```{r}
+imputed_totaldailysteps <- mydata3_imputed %>% 
+      group_by(date) %>% 
+      summarize(totalsteps_imputed = sum(steps))
+```
+
+
+
+
+```{r}
+original_totaldailysteps <- mydat %>% 
+      group_by(date) %>% 
+      summarize(totalsteps_original = sum(steps))
+```
+
+
+
+
+
+old:
+
 - Using the dataframe created above, steps_eachday_imputed, we can calculate the means and medians of the imputed data. The results are enclosed in the dataframe 'Comparisons_Means_Medians' below.
 
 - Since the original steps per day is also included in this dataframe, we can show the comparisons of the original means and medians to the computed means and medians below.
@@ -599,12 +808,56 @@ Comparisons_Means_Medians
 
 #### 3.4.3 Do these values differ from the estimates from the first part of the assignment? 
 
+new:
+
+With the original data, when we summed the daily steps, since eight of the days were missing steps data, we had na's for some of the sums. In calculating the means and the medians, we had to remove the na values.
+
+In contrast, with the imputed data frame, those 8 days have the imputed data, which involves approximations. The means and medians are then calculated with the full data including the imputations.
+
+Thus, there is a difference in the mean and the median calculations with the imputed data, compared to the first part of the assignment. But the differences are small.
+
+
+
+
+old:
+
 - As seen from the comparison table above, the values do not differ by much from the estimates in the first part of the assignment. This is because of the following:
   - The imputation method used was a reasonable approach
   - In calculation of the means of the original data, the missing days were already accounted for (8 days with missing data), and only the days with available data were used in the calculation of the means.
 
 
 #### 3.4.4 What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+new:
+
+Since the missing values are not scattered throughout the dataframe but are concentrated on specific days, the total daily steps only change for the days which had missing values, since an imputation is involved. For the remaining days which had no missing values, the total daily steps remain the same, as shown below.
+
+
+```{r}
+# total steps, with imputations
+imputed_totaldailysteps <- mydata3_imputed %>% 
+      group_by(date) %>% 
+      summarize(totalsteps_imputed = sum(steps))
+```
+
+
+```{r}
+# total steps - original
+original_totaldailysteps <- mydat %>% 
+      group_by(date) %>% 
+      summarize(totalsteps_original = sum(steps))
+```
+
+A comparison of the first 6 rows are shown to demonstrate this.
+
+```{r}
+imputed_totaldailysteps %>% 
+      left_join(original_totaldailysteps, by = 'date') %>% head()
+```
+
+
+
+Old:
 
 As the table in section 3.4.2 shows, the total daily steps estimate with the imputes is 10821.22, while the original daily steps estimate was 10766.19.
 
@@ -621,9 +874,38 @@ steps_eachday_imputed %>%
             totalDailySteps_original = sum(steps_perday_orig, na.rm = TRUE)/53)
 ```
 
+
 ## Q4: Are there differences in activity patterns between weekdays and weekends?
 
 #### 4.1 Create a new factor variable in the dataset with two levels – “weekday” and “weekend”
+
+new:
+
+```{r}
+# with original data
+mydata4 <- mydat %>% 
+      mutate(dayofweek = weekdays(as.Date(date))) %>% 
+      mutate(wknd = as.factor(
+            if_else(dayofweek %in% c('Saturday',  'Sunday'), 
+                    'weekend',
+                    'weekday')))
+mydata4 %>% head()
+```
+```{r}
+# with imputed data
+mydata5 <- mydata3_imputed %>% 
+      mutate(dayofweek = weekdays(as.Date(date))) %>% 
+      mutate(wknd = as.factor(
+            if_else(dayofweek %in% c('Saturday',  'Sunday'), 
+                    'weekend',
+                    'weekday')))
+mydata5 %>% head()
+```
+
+
+
+
+old:
 
 
 ```{r}
@@ -636,6 +918,101 @@ imputed_and_wday %>% head()
 
 
 #### 4.2 Make a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
+
+new:
+
+
+```{r, message = F}
+# with missing values
+# go forward with this one
+mydata4 %>% 
+      mutate(interval = tohours_3(interval)) %>% 
+      group_by(interval, wknd) %>% 
+      summarize(meansteps = round(mean(steps, na.rm = TRUE), 2)) %>% 
+      ggplot(aes(interval, meansteps)) + 
+      geom_line(lwd = 1, color = 'steelblue') +
+      facet_grid(wknd~.)
+```
+
+
+this is the second part with imputed data to start with.
+
+```{r, message=F}
+# go forward with this one
+mydata5 %>% 
+      group_by(interval, wknd) %>% 
+      summarize(meansteps = round(mean(steps), 2)) %>% 
+      ggplot(aes(interval, meansteps)) + geom_line(lwd = 1, 
+                                                   color = 'steelblue') +
+      facet_grid(wknd~.)
+```
+
+
+
+```{r}
+# with imputed data
+mydata5 %>% 
+      #mutate(interval = tohours_3(interval)) %>% 
+      group_by(wknd, interval) %>% 
+      summarize(meansteps = round(mean(steps, na.rm = TRUE), 2))
+```
+
+```{r}
+with_missing <- mydata4 %>% 
+      mutate(interval = tohours_3(interval)) %>% 
+      group_by(interval, wknd) %>% 
+      summarize(wMissing = round(mean(steps, na.rm = TRUE), 2))
+without_missing <- mydata5 %>% 
+      #mutate(interval = tohours_3(interval)) %>% 
+      group_by(wknd, interval) %>% 
+      summarize(withoutMissing = round(mean(steps, na.rm = TRUE), 2))
+# using left join to have all the data in the same dataframe
+fulldata <- with_missing %>% 
+      left_join(without_missing, by = c('interval', 'wknd')) %>% 
+      pivot_longer(3:4, names_to = 'miss_ornot', values_to = 'mean_vals') %>% 
+      mutate(miss_ornot = as.factor(miss_ornot))
+
+fulldata %>% head()
+```
+
+
+```{r}
+# use this
+fulldata %>% 
+      ggplot(aes(interval, mean_vals, color = miss_ornot)) +
+      geom_line(lwd = 1) +
+      facet_grid(wknd~.) +
+      labs(x = "Time in hours (at 5-min intervals)",
+           y = "Average number of steps taken") +
+      ggtitle("Average Steps per interval: Weekdays vs. the Weekend")
+```
+
+
+
+```{r}
+with_missing %>% 
+      left_join(without_missing, by = c('interval', 'wknd')) %>% 
+      pivot_longer(3:4, names_to = 'miss_ornot', values_to = 'mean_vals') %>% 
+      ggplot(aes(interval, mean_vals, color = miss_ornot)) +
+      geom_line(lwd = 1) +
+      facet_grid(wknd~.)
+```
+
+```{r}
+mydata4 %>% 
+      filter(is.na(steps)) %>% 
+      count(wknd)
+      
+```
+
+
+
+
+
+
+
+
+old:
 
 - First we arrange our data so that we have the mean steps per interval for each of the factor levels, weekday and weekend.
 
@@ -663,9 +1040,9 @@ meanSteps_wk_vs_wknd %>%
 - Some Observations:
 
   - It looks like the activity during 8-9AM is much higher during weekdays, which is probably consistent with our expectations, as people travel to work during these hours.
-  - The mean activity between 10AM and 4PM appears to be higher during the weekends.
+  - The mean activity between 10AM and 4PM appears to be higher during the weekends, consistent with people being out and about instead of being at work.
   - During the weekends, people seem to be more active in the evenings after 8PM.
-  - From 5-8AM, there is considerably more activity during the week compared to weekends; this is probably expected as during the weekdays, this is the time people are getting ready to go to work or getting their exercise in the mornings, while more people are probably likely to sleep in during the weekends.
+  - From 5-8AM, and 4-6PM, there is considerably more activity during the week compared to weekends; this is probably due to people getting ready to go to work or getting their exercise in the mornings/evenings, while more people are probably likely to sleep in during the weekend mornings.
 
 
 
