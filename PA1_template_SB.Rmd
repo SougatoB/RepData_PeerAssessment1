@@ -42,6 +42,11 @@ mydat <- read.csv("activity.csv")
 
 ### Initial Exploratory Data Analysis
 
+```{r}
+mydat %>% head()
+```
+
+
 - Initial glimpse of the data
 
 ```{r}
@@ -114,7 +119,7 @@ TotalSteps_perDay %>% head()
 
 #### 1.2 histogram of the total number of steps taken each day
 
-Total steps per day are plotted as followed. Since we don't have data for some of the days, there are gaps in the histogram corresponding to those days.
+Total steps per day are plotted as follows. Since we don't have data for some of the days, there are gaps in the histogram for those days.
 
 ```{r, warning=FALSE}
 # use this
@@ -151,7 +156,7 @@ For plotting the time series of the 5-min intervals and the average number of st
 ```{r}
 mydat2 <- mydat %>% 
       pivot_wider(names_from = date, values_from = steps)
-#mydat2 %>% head()
+mydat2 %>% head()
 ```
 
 Taking the row means while leaving out the interval column gives the desired output. Also, we create a function to convert the interval to time units, and use this function to update the datatype of the interval column.
@@ -213,16 +218,26 @@ It is seen that only missing values (NAs) are in the steps column.
 mydat %>% is.na() %>% colSums()
 ```
 
+Further, all of these missing values (288*8 = 2304) are consolidated to specific dates, as shown below.
+
+```{r}
+mydata <- mydat %>% 
+      pivot_wider(names_from = interval, values_from = steps) %>% 
+      mutate(missingvals = rowSums(is.na(.))) %>% 
+      select(date, missingvals)
+mydata %>% filter(missingvals > 0)
+```
+
 
 #### 3.2 Devise a strategy for filling in all of the missing values in the dataset. 
 
 $Strategy$
 
-- Each of the missing values correspond to an interval and a day of week.
+- Each of the missing values correspond to a specific interval and a specific day of week.
 
 - It can be envisioned that the missing values for the steps taken for a particular 5min interval could be approximated reasonably well if we use the mean steps for 
-      - the same day of the week, and 
-      - the same 5-minute interval.
+      - the same day of the week, AND 
+      - the same 5-minute interval combinations.
 
 - It is expected that the missing value will have substantial similarity to the values corresponding to the same time of the day and the same day of the week. 
 
@@ -243,7 +258,7 @@ imputedf <- mydat %>%
       mutate(wkday = weekdays(as.Date(date))) %>% 
       select(-date) %>% group_by(wkday, interval) %>% 
       summarize(mean_steps = round(mean(steps, na.rm = TRUE), 2))
-#imputedf %>% head()
+imputedf %>% head()
 ```
 
 For each combination of wkday and interval, we have an associated mean, mean_steps. An example is shown below:
@@ -273,7 +288,6 @@ And finally,
 The imputed new dataset is 'mydata3_imputed'
 
 ```{r}
-# this seems to work
 mydata3_imputed <- mydata3 %>% 
       left_join(imputedf, by = c('interval', 'wkday')) %>% 
       mutate(steps = if_else(is.na(steps), mean_steps, steps)) %>% 
@@ -290,18 +304,8 @@ mydata3_imputed %>% is.na() %>% colSums()
 
 #### 3.4.1 Make a histogram of the total number of steps taken each day
 
-new:
 
-The total number of steps taken per day can be calculated using our imputed data frame as follows:
-
-
-```{r}
-mydata3_imputed %>% 
-      mutate(date = as.Date(date)) %>% 
-      group_by(date) %>% 
-      summarize(steps_perday = sum(steps)) %>% head()
-```
-
+The total number of steps taken per day can be plotted using our imputed data frame as follows:
 
 
 ```{r, warning=F}
@@ -318,39 +322,7 @@ mydata3_imputed %>%
 ```
 
 
-
-
-old:
-
-- Using the exact same steps as in question 1, our new dataframe imputed_df_2 was processed, which now has the steps_perday_imputed as the column with the imputed values of steps per day.
-
-- For the sake of clarity, the steps per day in the original data with the missing values have been added to our dataframe as steps_perday_orig.
-
-
-```{r}
-steps_eachday_imputed <- imputed_df_2 %>% 
-  pivot_wider(names_from = interval, values_from = steps) %>% 
-  mutate(date = as.Date(date), steps_perday_imputed = rowSums(select(., -date))) %>% 
-  select(date, steps_perday_imputed) %>% 
-  mutate(steps_perday_orig = steps_eachday$steps_perday)
-steps_eachday_imputed %>% head()
-```
-The histogram for the total number of steps taken each day is as plotted below.
-
-
-```{r, warning = FALSE}
-steps_eachday_imputed %>% 
-  ggplot(aes(date, steps_perday_imputed)) +
-  geom_histogram(stat = "identity", fill = "steelblue") +
-  labs(x = "Date", y = "Total Steps (including imputed) per Day") +
-  scale_x_date(date_labels = "%m/%d", date_breaks = "3 days") +
-  theme(axis.text.x = element_text(angle = 45, hjust=1)) + 
-  ggtitle("Total Steps (with imputations) per Day from Oct 1, 2012 to Nov 30, 2012")
-```
-
 #### 3.4.2  Calculation of the mean and median total number of steps taken per day
-
-new:
 
 
 To find this, we write a function that groups the data by date and calculates the total steps taken per day. We then summarize with the mean and median total steps.
@@ -378,72 +350,11 @@ perday_meansmedians(mydat)
 ```
 
 
-```{r}
-# this is the correct one, but having a function looks more slick
-mydata3_imputed %>% 
-      group_by(date) %>% 
-      summarize(total_steps = sum(steps)) %>% 
-      summarize(mean_totalsteps = mean(total_steps),
-                median_totalsteps = median(total_steps))
-```
-
-And with the original dataframe, the mean and the medians are calculated using the same procedure as follows.
-
-```{r}
-mydat %>% 
-      group_by(date) %>% 
-      summarize(total_steps = sum(steps)) %>% 
-      summarize(mean_totalsteps = mean(total_steps, na.rm = TRUE),
-                median_totalsteps = median(total_steps, na.rm = TRUE))
-```
-
-```{r}
-imputed_totaldailysteps <- mydata3_imputed %>% 
-      group_by(date) %>% 
-      summarize(totalsteps_imputed = sum(steps))
-```
-
-
-
-
-```{r}
-original_totaldailysteps <- mydat %>% 
-      group_by(date) %>% 
-      summarize(totalsteps_original = sum(steps))
-```
-
-
-
-
-
-old:
-
-- Using the dataframe created above, steps_eachday_imputed, we can calculate the means and medians of the imputed data. The results are enclosed in the dataframe 'Comparisons_Means_Medians' below.
-
-- Since the original steps per day is also included in this dataframe, we can show the comparisons of the original means and medians to the computed means and medians below.
-
-- The mean with imputes for total steps is 10821.11, while the original was 10766.19.
-
-- The median with imputes for total steps is 11015.00 while the original was 10765.00.
-
-
-```{r}
-Comparisons_Means_Medians <- steps_eachday_imputed %>% 
-  summarize(mean_total_steps_orig = mean(steps_perday_orig, na.rm = TRUE),
-            median_total_steps_orig = median(steps_perday_orig, na.rm = TRUE),
-            mean_total_steps_imputed = mean(steps_perday_imputed),
-            median_total_steps_imputed = median(steps_perday_imputed)) %>% 
-  select(mean_total_steps_orig, mean_total_steps_imputed,
-         median_total_steps_orig, median_total_steps_imputed) %>% 
-  pivot_longer(1:4, names_to = "Comparison of Means & Medians", values_to = "Values")
-Comparisons_Means_Medians
-```
-
 #### 3.4.3 Do these values differ from the estimates from the first part of the assignment? 
 
-new:
+Yes, there is a small difference in the means and the medians, between the imputed and the original data, regarding the total steps taken per day.
 
-With the original data, when we summed the daily steps, since eight of the days were missing steps data, we had na's for some of the sums. In calculating the means and the medians, we had to remove the na values.
+With the original data, when we summed the daily steps, since eight of the days were missing steps data, we had NAs for some of the sums. In calculating the means and the medians, we had to remove the NA values.
 
 In contrast, with the imputed data frame, those 8 days have the imputed data, which involves approximations. The means and medians are then calculated with the full data including the imputations.
 
@@ -451,17 +362,7 @@ Thus, there is a difference in the mean and the median calculations with the imp
 
 
 
-
-old:
-
-- As seen from the comparison table above, the values do not differ by much from the estimates in the first part of the assignment. This is because of the following:
-  - The imputation method used was a reasonable approach
-  - In calculation of the means of the original data, the missing days were already accounted for (8 days with missing data), and only the days with available data were used in the calculation of the means.
-
-
 #### 3.4.4 What is the impact of imputing missing data on the estimates of the total daily number of steps?
-
-new:
 
 Since the missing values are not scattered throughout the dataframe but are concentrated on specific days, the total daily steps only change for the days which had missing values, since an imputation is involved. For the remaining days which had no missing values, the total daily steps remain the same, as shown below.
 
@@ -489,25 +390,6 @@ imputed_totaldailysteps %>%
 ```
 
 
-
-Old:
-
-As the table in section 3.4.2 shows, the total daily steps estimate with the imputes is 10821.22, while the original daily steps estimate was 10766.19.
-
-The fact that these numbers are close likely shows that our method of imputing the missing values is a reasonable approach.
-
-$Note:$
-
-We could also calculate the means differently to reach the same numbers: Since the original data had steps information for only 53 of the 61 days, the total steps are divided by 53 below, while with the imputes, the division is by 61.
-
-
-```{r}
-steps_eachday_imputed %>% 
-  summarize(totalDailySteps_withImputes = sum(steps_perday_imputed)/61,
-            totalDailySteps_original = sum(steps_perday_orig, na.rm = TRUE)/53)
-```
-
-
 ## Q4: Are there differences in activity patterns between weekdays and weekends?
 
 #### 4.1 Create a new factor variable in the dataset with two levels – “weekday” and “weekend”
@@ -525,6 +407,7 @@ mydata4 <- mydat %>%
                     'weekday')))
 mydata4 %>% head()
 ```
+
 ```{r}
 # with imputed data
 mydata5 <- mydata3_imputed %>% 
