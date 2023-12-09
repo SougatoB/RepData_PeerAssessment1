@@ -5,8 +5,11 @@ output:
     keep_md: true
 ---
 
+### Project 1: Data Analysis from an activity monitoring device
 
-## 1. Loading and preprocessing the data
+In this project, we focus on understanding the data generated from an activity monitoring device regarding the number of steps taken in 5-minute intervals. The analysis helps us understand the activity levels of the user as a function of time.
+
+## Loading and preprocessing the data
 
 ```{r, include = FALSE}
 rm(list = ls())
@@ -36,12 +39,8 @@ mydat <- read.csv("activity.csv")
 ```
 
 
-```{r}
-mydat %>% head()
-```
 
-
-### 1.1 Initial Exploratory Data Analysis
+### Initial Exploratory Data Analysis
 
 - Initial glimpse of the data
 
@@ -50,6 +49,8 @@ mydat %>% glimpse
 ```
 
 - NA values per column:
+
+All missing values are associated with the steps column.
 
 ```{r}
 mydat %>% is.na() %>% colSums()
@@ -67,83 +68,29 @@ for (i in 1:3){
 }
 ```
 
-- It would be helpful to identify how the missing values are dispersed within the dataframe. Is it localized to only a few dates, or scattered through all of the days?
-- is it localized to specific minute intervals?
+- How are the missing values distributed?
 
 Reshaping the data, looks like the missing values are all on specific dates.
 
 ```{r}
-# new
 mydat %>% 
       pivot_wider(names_from = interval, values_from = steps) %>%
       is.na() %>% 
       rowSums()
 ```
 
-
-The reshaped data is stored as 'mydata'.
-
-```{r}
-#new
-mydata = mydat %>% 
-      pivot_wider(names_from = interval, values_from = steps) %>% 
-      mutate(date = as.Date(date), 
-            daily_stepsums = rowSums(select_if(., is.numeric))) %>% 
-      select(daily_stepsums, everything())
-mydata %>% head()
-```
-
-
-
-
-- to identify the dates that correspond to having all missing values:
-
-```{r}
-# can omit
-mydat %>% 
-      pivot_wider(names_from = interval, values_from = steps) %>% 
-      mutate(num_missing = rowSums(select_if(., is.numeric)),
-      date = as.Date(date)) %>% 
-      select(num_missing, everything()) %>% 
-      # displaying only the missing rows
-      filter(is.na(num_missing))
-```
-
-
-
-
-
-```{r}
-mydat %>% 
-      pivot_wider(names_from = interval, values_from = steps) %>% 
-      mutate(num_missing = rowSums(select_if(., is.numeric))) %>% 
-      pull(num_missing) %>% 
-      mean(na.rm = TRUE)
-```
-
-
 - Determining where the missing values are located.
 
 Of the 2304 missing values for the steps column, it turns out that they are not scattered throughout the data, but the missing data are all on 8 specific days (288*8 = 2304 missing vals). The missing days are identified in the code chunk below.
 
+- Specific dates with missing values are shown below.
 
 ```{r}
-missing_days <- mydat %>% 
-  pivot_wider(names_from = interval, values_from = steps) %>% 
-  mutate(missing_vals_perday = rowSums(is.na(.))) %>% 
-  select(date, missing_vals_perday, everything()) %>% 
-  filter(missing_vals_perday != 0)
-```
-
-  - The days for which we have NAs are displayed in missing_days$date below.
-
-```{r}
-missing_days
-```
-
-
-```{r}
-missing_days$date
+mydata <- mydat %>% 
+      pivot_wider(names_from = interval, values_from = steps) %>% 
+      mutate(missingvals = rowSums(is.na(.))) %>% 
+      select(date, missingvals)
+mydata %>% filter(missingvals > 0)
 ```
 
 
@@ -151,184 +98,67 @@ missing_days$date
 
 #### 1.1 Calculate the total number of steps taken per day
 
-We already have the daily_stepsums variable created earlier; we calculate the mean to get the mean total steps.
+Total steps per day can be calculated by grouping the steps by date and getting the sum for each day.
 
-
-```{r}
-#new
-mydata %>% 
-      pull(daily_stepsums) %>% 
-      mean(na.rm = TRUE)
-```
-
-
-$can probably leave out the following$
-
-There are 61 days total for this data. But per the initial EDA, 8 days of data are fully missing (variable: missing_days), and there are actually 53 days of data.
-
-So number of days can be 61 including the missing days, or 53 excluding the missing days.
-
-Total number of steps is 570608.
+We notice that there are some days where totalsteps cannot be calculated due to missing values.
 
 ```{r}
-total_steps <- mydat$steps %>% sum(na.rm = TRUE)
-total_steps
-```
-
-- Total steps per day are as follows. The NAs correspond to the days for which data are missing.
-  
-```{r}
+# use this
 TotalSteps_perDay <- mydat %>% 
-  pivot_wider(names_from = interval, values_from = steps) %>% 
-  mutate(date = as.Date(date), steps_perday = rowSums(select(., -date))) %>% 
-  select(date, steps_perday)
+      group_by(date) %>% 
+      summarize(total_steps = sum(steps)) %>% 
+      mutate(date = as.Date(date))
 TotalSteps_perDay %>% head()
 ```
-The mean steps per day are 10766.19.
 
-
-```{r}
-TotalSteps_perDay %>% 
-  summarise(meanSteps_perDay = mean(steps_perday, na.rm = TRUE))
-```
-$Note:$
-
-The above mean is based on 53 days, as data for the remaining days are missing. (Using number of days as 61, the mean total number of steps would be 9354.23)
 
 #### 1.2 histogram of the total number of steps taken each day
 
-For this, we need to plot daily_stepsums against date.
+Total steps per day are plotted as followed. Since we don't have data for some of the days, there are gaps in the histogram corresponding to those days.
 
-```{r, warning = FALSE}
-#new
-mydata %>% 
-      ggplot(aes(date, daily_stepsums)) + 
+```{r, warning=FALSE}
+# use this
+TotalSteps_perDay %>% 
+      ggplot(aes(date, total_steps)) + 
       geom_histogram(stat = 'identity', fill = 'steelblue') +
       labs(x = "Date", y = "Total Steps per Day") +
       scale_x_date(date_labels = "%m/%d", date_breaks = "7 days") +
       theme(axis.text.x = element_text(angle = 45, hjust=1)) + 
       ggtitle("Total Steps per Day from Oct 1, 2012 to Nov 30, 2012")
-```
-
-$can probably ignore the rest$
-
-```{r}
-steps_eachday <- mydat %>% 
-  pivot_wider(names_from = interval, values_from = steps) %>% 
-  mutate(date = as.Date(date), steps_perday = rowSums(select(., -date))) %>% 
-  select(date, steps_perday)
-steps_eachday %>% head()
-```
-
-- For the purpose of plotting the histogram, the missing values are replaced with zeros.
-
-
-```{r, warning=FALSE}
-steps_eachday %>% 
-  replace_na(list(steps_perday = 0)) %>% 
-  ggplot(aes(date, steps_perday)) +
-  geom_histogram(stat = "identity", fill = "steelblue") +
-  labs(x = "Date", y = "Total Steps per Day") +
-  scale_x_date(date_labels = "%m/%d", date_breaks = "7 days") +
-  theme(axis.text.x = element_text(angle = 45, hjust=1)) + 
-  ggtitle("Total Steps per Day from Oct 1, 2012 to Nov 30, 2012")
+      
 ```
 
 
 #### 1.3 mean and median of the total number of steps taken per day
 
-This information is obtained using the summarize() function on the daily_stepsums column
-
-
-### something might be wrong in this step, as i think we are supposed to find the mean steps per day, not the overall mean steps.
-
 ```{r}
-#new
-mydata %>% 
-      summarize(median_steps = median(daily_stepsums, na.rm = TRUE),
-                mean_steps = mean(daily_stepsums, na.rm = TRUE))
-```
-```{r}
-mydat
-```
-
-```{r}
-mydat %>% 
-      pivot_wider(names_from = interval, values_from = steps) %>% 
-      mutate(mean_steps = rowMeans(select(., -date), na.rm = TRUE)) %>% 
-      select(date, mean_steps)
-```
-### major issue - not being able to get rid of null values
-
-understandable, as some dates do not have any values at all
-
-```{r}
-mydat %>% 
-      pivot_wider(names_from = interval, values_from = steps) %>% 
-      mutate(mean_steps = rowMeans(across(-date), na.rm = TRUE, dims = 1)) %>% 
-      select(date, mean_steps)
-```
-```{r}
-mydat %>% 
-      group_by(date) %>% 
-      mean(steps, na.rm = TRUE)
-```
-
-
-
-```{r}
-#nope
-mydat %>% 
-      mutate(date = as.Date(date)) %>% 
-      group_by(date) %>% 
-      summarize(meansteps = round(mean(steps), 2), 
-                mediansteps = round(median(steps), 2)) 
-```
-
-
-
-
-
-
-
-$can leave this out$
-
-Mean and median total steps per day are calculated as follows.
-
-```{r}
-steps_eachday %>% 
-  summarize(mean_total_steps = mean(steps_perday, na.rm = TRUE),
-            median_total_steps = median(steps_perday, na.rm = TRUE))
+# use this
+TotalSteps_perDay %>% 
+      summarize(meansteps = mean(total_steps, na.rm = TRUE), 
+                mediansteps = median(total_steps, na.rm = TRUE))
 ```
 
 
 ## Q2. What is the average daily activity pattern?
 
-#### Q2.2 Make a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+#### Q2.1 Make a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
 
-$new approach$
+
+For identifying the average daily activity pattern, we need to look at the average activity (average number of steps across all days) for each 5-minute interval.
 
 For plotting the time series of the 5-min intervals and the average number of steps, it is helpful to arrange the data differently.
 
 ```{r}
 mydat2 <- mydat %>% 
       pivot_wider(names_from = date, values_from = steps)
-mydat2 %>% head()
+#mydat2 %>% head()
 ```
 
-Taking the row means while leaving out the interval column gives the desired output. 
-
-```{r}
-mydat2_intervals <- mydat2 %>% 
-      mutate(interval_means = round(rowMeans(select(.,-interval), 
-                                             na.rm = TRUE), 2)) %>% 
-      select(interval, interval_means)
-```
-
-Also, the true interval is in time units while our dataframe above, the column 'interval' is of type int. To fix this, we create a function that converts this column to time units, and use this to update the data type of the interval column.
+Taking the row means while leaving out the interval column gives the desired output. Also, we create a function to convert the interval to time units, and use this function to update the datatype of the interval column.
 
 
 ```{r}
+# function to convert interval to time units
 tohours_3 <- function(data){
   hour = floor(data/100)
   min = sprintf("%02d", data %% 100)
@@ -338,18 +168,18 @@ tohours_3 <- function(data){
 ```
 
 
+
 ```{r}
-mydat2_intervals <-  mydat2_intervals %>% 
+# getting our dataframe with the mean steps per interval
+mydat2_intervals <- mydat2 %>% 
+      mutate(interval_means = round(rowMeans(select(.,-interval), 
+                                             na.rm = TRUE), 2)) %>% 
+      select(interval, interval_means) %>% 
       mutate(interval = tohours_3(interval))
 mydat2_intervals %>% head()
 ```
-```{r}
-mydat2_intervals %>% 
-      ggplot(aes(interval, interval_means)) + geom_line(color = 'steelblue')+
-      theme(axis.text.x = element_text(angle = 45, hjust=1))
-      #scale_x_date(date_breaks = '%H%M')
-#scale_x_date(date_labels = "%m/%d", date_breaks = "7 days")
-```
+Finally, the time series plot is obtained as follows with the above dataframe.
+
 ```{r}
 mydat2_intervals %>% 
   ggplot(aes(x = interval, y = interval_means)) + 
@@ -360,81 +190,17 @@ mydat2_intervals %>%
 ```
 
 
-$old approach$ let this stay for now but delete later on before submitting
 
+#### Q2.2 Which 5-minute interval on average contains the maximum number of steps?
 
-- First, we arrange the data so as to determine the mean steps per 5-min interval. The key step is to use the pivot_wider() function, followed by appropriate summarization of the relevant columns.
+Based on the code below, 8:35AM is associated with the maximum number of steps, based on daily average number of steps.
 
-In determining the mean steps the division is by the number of available days of data, 53 days.
-
-
-```{r}
-# final version
-meanSteps_perInterval <- mydat %>% 
-  pivot_wider(names_from = date, values_from = steps) %>% 
-  mutate(total_steps_5min = rowSums(select(.,-interval), na.rm = TRUE)) %>% 
-  mutate(mean_steps_5min = round(total_steps_5min/53, 2)) %>% 
-  select(interval, mean_steps_5min)
-meanSteps_perInterval %>% head()
-```
-```{r}
-meanSteps_perInterval %>% head(20)
-```
-
-- If we look at the interval column, it still shows discontinuity; for example after 55, the next number is 100. To address this, a function is created, tohours_3(), that takes in numeric data and outputs the data in period format with hours:minutes:seconds, and with the correction for discontinuity.
-
-
-```{r}
-tohours_3 <- function(data){
-  hour = floor(data/100)
-  min = sprintf("%02d", data %% 100)
-  time_str = parse_time(paste0(hour, ":", min))
-  return (time_str)
-}
-```
-
-
-- Finally, we update the interval column with the function tohours_3() shows the appropriate intervals in time format (hms).
-
-
-```{r}
-meanSteps_per_Interval <- meanSteps_perInterval %>% 
-  mutate(interval = tohours_3(interval))
-meanSteps_per_Interval
-```
-
-
-- The plot is made using ggplot2, with the x-axis hsowing the Intervals (the labels are in hours) and the y-axis shows the mean steps per 5-min interval.
-
-
-```{r}
-meanSteps_per_Interval %>% 
-  ggplot(aes(x = interval, y = mean_steps_5min)) + 
-  geom_line(lwd = 1, color = "steelblue") +
-  labs(x = "Interval    (x-axis label is in Hours)", 
-       y = "Mean Steps per 5-min interval") +
-  ggtitle("Time Series plot for Mean Steps per 5-minute Interval")
-```
-
-
-#### Q2.2 5-minute interval containing the maximum number of steps
-
-new:
 
 ```{r}
 mydat2_intervals %>% 
       filter(interval_means == max(interval_means))
 ```
 
-
-old - delete this one:
-
-The maximum number of steps is at 8:35AM.
-
-```{r}
-meanSteps_per_Interval %>% 
-  filter(mean_steps_5min == max(mean_steps_5min))
-```
 
 ## Q3. Imputing missing values
 
