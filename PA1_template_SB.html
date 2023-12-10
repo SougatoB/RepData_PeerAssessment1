@@ -358,8 +358,8 @@ display: none;
 <h3>Project 1: Data Analysis from an activity monitoring device</h3>
 <p>In this project, we focus on understanding the data generated from an
 activity monitoring device regarding the number of steps taken in
-5-minute intervals. The analysis helps us understand the activity levels
-of the user as a function of time.</p>
+5-minute intervals. The analysis helps us better understand the activity
+levels of the user as a function of time.</p>
 </div>
 <div id="loading-and-preprocessing-the-data" class="section level2">
 <h2>Loading and preprocessing the data</h2>
@@ -659,13 +659,17 @@ mydata3 %&gt;% head()</code></pre>
 <p>And finally, the join step, using the code block below. The steps
 are:</p>
 <ul>
-<li><p>imputedf is left-joined with mydata3:</p>
-<pre><code>- interval and wkday columns match up (by = c(&#39;interval&#39;, &#39;wkday&#39;))
-- making sure only those with missing values in mydata3 are imputed</code></pre></li>
-<li><p>missing values are imputed using values from the mean_steps
-column</p></li>
-<li><p>the mean_steps and wkday columns are dropped to get back our
-imputed dataframe</p></li>
+<li>imputedf is left-joined with mydata3:
+<ul>
+<li>interval and wkday columns match up (by = c(‘interval’,
+‘wkday’))</li>
+<li>making sure only those with missing values in mydata3 are
+imputed</li>
+</ul></li>
+<li>missing values are imputed using values from the mean_steps
+column</li>
+<li>the mean_steps and wkday columns are dropped to get back our imputed
+dataframe</li>
 </ul>
 <p>The imputed new dataset is ‘mydata3_imputed’</p>
 <pre class="r"><code>mydata3_imputed &lt;- mydata3 %&gt;% 

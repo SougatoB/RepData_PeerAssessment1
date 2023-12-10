@@ -7,7 +7,7 @@ output:
 
 ### Project 1: Data Analysis from an activity monitoring device
 
-In this project, we focus on understanding the data generated from an activity monitoring device regarding the number of steps taken in 5-minute intervals. The analysis helps us understand the activity levels of the user as a function of time.
+In this project, we focus on understanding the data generated from an activity monitoring device regarding the number of steps taken in 5-minute intervals. The analysis helps us better understand the activity levels of the user as a function of time.
 
 ## Loading and preprocessing the data
 
@@ -264,10 +264,8 @@ mydata3 %>% head()
 And finally, the join step, using the code block below. The steps are:
 
 - imputedf is left-joined with mydata3: 
-
-
-      - interval and wkday columns match up (by = c('interval', 'wkday'))
-      - making sure only those with missing values in mydata3 are imputed
+  - interval and wkday columns match up (by = c('interval', 'wkday'))
+  - making sure only those with missing values in mydata3 are imputed
 - missing values are imputed using values from the mean_steps column
 - the mean_steps and wkday columns are dropped to get back our imputed dataframe
 
